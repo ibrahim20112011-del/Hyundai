@@ -22,7 +22,7 @@ public class GearController {
         return inst;
     }
 
-    private final Context ctx;
+    private Context ctx;
     private final Handler h = new Handler(Looper.getMainLooper());
     private int state = UNKNOWN;
 
