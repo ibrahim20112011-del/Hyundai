@@ -66,6 +66,12 @@ public class MainActivity extends Activity {
         rearSp = appSpinner(labels, cfg.get("rear_pkg", ""), null);
         label("تطبيق الكاميرا الأمامية (عند D) — مثل AVIN");
         frontSp = appSpinner(labels, cfg.get("front_pkg", ""), "avin");
+        field("rear_comp", "شاشة محددة للخلفية (حزمة/كلاس) — اتركها فارغة لاستخدام التطبيق أعلاه", "");
+        field("front_comp", "شاشة محددة للأمامية (حزمة/كلاس) — اتركها فارغة لاستخدام التطبيق أعلاه", "");
+        button("مستكشف شاشات تطبيق (للعثور على الكاميرا الخلفية)", v -> {
+            save();
+            startActivity(new Intent(this, ExploreActivity.class));
+        });
         field("front_secs", "مدة بقاء الأمامية بالثواني", "10");
         check("go_home", "العودة للشاشة الرئيسية بعد انتهاء المدة", true);
 
@@ -106,11 +112,11 @@ public class MainActivity extends Activity {
         title("اختبار");
         button("جرّب فتح الخلفية", v -> {
             save();
-            Util.launch(this, cfg.get("rear_pkg", ""));
+            Util.launch(this, GearController.target(cfg, "rear"));
         });
         button("جرّب فتح الأمامية", v -> {
             save();
-            Util.launch(this, cfg.get("front_pkg", ""));
+            Util.launch(this, GearController.target(cfg, "front"));
         });
         button("محاكاة R", v -> {
             save();
@@ -134,6 +140,14 @@ public class MainActivity extends Activity {
         super.onResume();
         Logx.listener = () -> ui.post(() -> logView.setText(Logx.dump()));
         logView.setText(Logx.dump());
+        // القيم التي اعتمدها المستكشف تُكتب مباشرة في الإعدادات، فنحدّث الحقول منها
+        String[] keys = {"rear_comp", "front_comp"};
+        for (String k : keys) {
+            EditText et = fields.get(k);
+            if (et != null) {
+                et.setText(cfg.get(k, ""));
+            }
+        }
     }
 
     @Override

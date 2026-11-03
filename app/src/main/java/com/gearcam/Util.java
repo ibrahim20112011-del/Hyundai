@@ -9,10 +9,33 @@ import java.io.FileInputStream;
 
 public class Util {
 
-    /** يفتح تطبيقاً حسب اسم الحزمة. */
+    /**
+     * يفتح تطبيقاً. الهدف إما اسم حزمة (يفتح الواجهة الرئيسية)،
+     * أو "حزمة/كلاس" لفتح شاشة محددة داخل التطبيق.
+     */
     public static boolean launch(Context c, String pkg) {
         if (pkg == null || pkg.trim().isEmpty()) {
             return false;
+        }
+        pkg = pkg.trim();
+        int slash = pkg.indexOf('/');
+        if (slash > 0) {
+            String p = pkg.substring(0, slash);
+            String cls = pkg.substring(slash + 1);
+            if (cls.startsWith(".")) {
+                cls = p + cls;
+            }
+            try {
+                Intent i = new Intent(Intent.ACTION_MAIN);
+                i.setClassName(p, cls);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                c.startActivity(i);
+                Logx.add("تم فتح " + p + "/" + cls);
+                return true;
+            } catch (Exception e) {
+                Logx.add("تعذر فتح " + p + "/" + cls + ": " + e);
+                return false;
+            }
         }
         try {
             Intent i = c.getPackageManager().getLaunchIntentForPackage(pkg.trim());

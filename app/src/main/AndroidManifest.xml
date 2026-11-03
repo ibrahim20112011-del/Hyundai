@@ -25,6 +25,10 @@
             android:name=".DiagActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ExploreActivity"
+            android:exported="false" />
+
         <service
             android:name=".GearService"
             android:exported="false" />

@@ -79,7 +79,7 @@ public class GearController {
             h.removeCallbacks(endFront);
             h.removeCallbacks(leaveRear);
             Logx.add("فتح الكاميرا الخلفية");
-            Util.launch(ctx, c.get("rear_pkg", ""));
+            Util.launch(ctx, target(c, "rear"));
         } else if (ns == D) {
             if (revOnly && prev != R) {
                 return;
@@ -87,7 +87,7 @@ public class GearController {
             h.removeCallbacks(endFront);
             h.removeCallbacks(leaveRear);
             Logx.add("فتح الكاميرا الأمامية");
-            Util.launch(ctx, c.get("front_pkg", ""));
+            Util.launch(ctx, target(c, "front"));
             if (c.getBool("go_home", true)) {
                 int secs = Math.max(1, c.getInt("front_secs", 10));
                 h.postDelayed(endFront, secs * 1000L);
@@ -98,6 +98,15 @@ public class GearController {
                 h.postDelayed(leaveRear, 3000);
             }
         }
+    }
+
+    /** الهدف: الشاشة المحددة (pkg/class) إن وُجدت، وإلا التطبيق المختار. */
+    static String target(Config c, String which) {
+        String comp = c.get(which + "_comp", "").trim();
+        if (!comp.isEmpty()) {
+            return comp;
+        }
+        return c.get(which + "_pkg", "");
     }
 
     private static boolean matches(String raw, String list) {
