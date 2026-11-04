@@ -73,6 +73,7 @@ public class MainActivity extends Activity {
             startActivity(new Intent(this, ExploreActivity.class));
         });
         field("front_secs", "مدة بقاء الأمامية بالثواني", "10");
+        field("front_delay", "تأخير فتح الأمامية بعد مغادرة R (مللي ثانية)", "600");
         check("go_home", "العودة للشاشة الرئيسية بعد انتهاء المدة", true);
 
         title("مصدر إشارة القير");

@@ -65,7 +65,8 @@ public class DiagActivity extends Activity {
         actions.setSingleLine(true);
         root.addView(actions);
 
-        button("ابدأ الاستماع", v -> startListen());
+        button("ابدأ الاستماع", v -> startListen(false));
+        button("استمع لكل الـ Actions المكتشفة (بعد البحث الشامل)", v -> startListen(true));
         button("إيقاف الاستماع", v -> stopListen());
         button("لقطة A (القير على P)", v -> takeSnap(true));
         button("لقطة B (القير على R)", v -> takeSnap(false));
@@ -96,7 +97,7 @@ public class DiagActivity extends Activity {
         super.onDestroy();
     }
 
-    private void startListen() {
+    private void startListen(boolean scanned) {
         stopListen();
         final ContentResolver cr = getContentResolver();
         obs = new ContentObserver(new Handler(Looper.getMainLooper())) {
@@ -117,6 +118,17 @@ public class DiagActivity extends Activity {
             if (!a.isEmpty()) {
                 f.addAction(a);
                 n++;
+            }
+        }
+        if (scanned) {
+            synchronized (ManifestScan.found) {
+                for (String a : ManifestScan.found) {
+                    f.addAction(a);
+                    n++;
+                }
+            }
+            if (ManifestScan.found.isEmpty()) {
+                Logx.add("لا توجد Actions مكتشفة، نفّذ \"بحث شامل\" من المستكشف أولاً");
             }
         }
         if (n > 0) {

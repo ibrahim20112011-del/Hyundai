@@ -14,13 +14,18 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.List;
+
 /**
- * مستكشف شاشات تطبيق: يعرض كل Activity داخل حزمة (مثل com.autochips.android.backcar)
- * ويسمح بتجربة كل واحدة واعتمادها للكاميرا الخلفية أو الأمامية.
+ * مستكشف تطبيق:
+ *  - يعرض شاشات (Activities) حزمة ويسمح بتجربتها واعتمادها.
+ *  - يعرض الـ Actions التي تستمع لها الحزمة.
+ *  - بحث شامل في كل التطبيقات عن Actions تخص القير والكاميرا.
  */
 public class ExploreActivity extends Activity {
     private LinearLayout root;
     private LinearLayout list;
+    private TextView scanOut;
     private EditText pkgEdit;
     private Config cfg;
 
@@ -38,11 +43,16 @@ public class ExploreActivity extends Activity {
         setContentView(sv);
 
         TextView help = new TextView(this);
-        help.setText("اكتب اسم الحزمة واضغط \"عرض\". لكل شاشة اضغط \"جرّب\" لترى ماذا تفتح. "
-                + "عندما تجد الشاشة التي تعرض الكاميرا الخلفية اضغط \"اعتمد للخلفية\" "
-                + "(وكذلك \"اعتمد للأمامية\" للأمامية). ثم ارجع واضغط \"حفظ وتشغيل الخدمة\".\n"
-                + "ملاحظة: الشاشات التي لا تفتح غالباً محمية من التطبيقات الأخرى.");
+        help.setText("1) \"بحث شامل\": يفحص كل التطبيقات ويعرض أسماء الإشارات (Actions) التي لها علاقة "
+                + "بالقير أو الكاميرا. بعده افتح \"أداة اكتشاف إشارة القير\" واضغط "
+                + "\"استمع لكل الـ Actions المكتشفة\" ثم حرّك القير P ← R ← P.\n"
+                + "2) أو اكتب اسم حزمة واضغط \"عرض\" لرؤية شاشاتها، و\"عرض Actions\" لرؤية ما تستمع له.");
         root.addView(help);
+
+        Button scan = new Button(this);
+        scan.setText("بحث شامل في كل التطبيقات (قد يستغرق نصف دقيقة)");
+        scan.setOnClickListener(v -> runScan());
+        root.addView(scan);
 
         pkgEdit = new EditText(this);
         pkgEdit.setSingleLine(true);
@@ -50,16 +60,67 @@ public class ExploreActivity extends Activity {
         root.addView(pkgEdit);
 
         Button show = new Button(this);
-        show.setText("عرض");
+        show.setText("عرض شاشات الحزمة");
         show.setOnClickListener(v -> load());
         root.addView(show);
+
+        Button acts = new Button(this);
+        acts.setText("عرض Actions الحزمة");
+        acts.setOnClickListener(v -> showActions());
+        root.addView(acts);
+
+        scanOut = new TextView(this);
+        scanOut.setTextIsSelectable(true);
+        scanOut.setPadding(0, dp(12), 0, 0);
+        root.addView(scanOut);
 
         list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         root.addView(list);
-
-        load();
     }
+
+    // ---------- البحث الشامل ----------
+
+    private void runScan() {
+        scanOut.setText("جارٍ البحث...");
+        new Thread(() -> {
+            List<String[]> rows = ManifestScan.scanAll(this);
+            StringBuilder sb = new StringBuilder();
+            sb.append("وُجد ").append(rows.size()).append(" إدخال، ")
+                    .append(ManifestScan.found.size()).append(" Action مختلف:\n\n");
+            int n = 0;
+            for (String[] r : rows) {
+                if (n++ >= 250) {
+                    sb.append("... (اقتُصر العرض على 250 سطراً)\n");
+                    break;
+                }
+                sb.append(r[0]).append("\n    ← ").append(r[1]).append("  [").append(r[2])
+                        .append("]  ").append(shorten(r[3], r[1])).append("\n");
+            }
+            final String text = sb.toString();
+            runOnUiThread(() -> scanOut.setText(text));
+        }).start();
+    }
+
+    private void showActions() {
+        final String pkg = pkgEdit.getText().toString().trim();
+        List<String[]> rows = ManifestScan.manifestActions(this, pkg);
+        StringBuilder sb = new StringBuilder("Actions في " + pkg + " (" + rows.size() + "):\n\n");
+        for (String[] r : rows) {
+            sb.append("[").append(r[1]).append("] ").append(shorten(r[2], pkg))
+                    .append("\n    ").append(r[0]).append("\n");
+        }
+        scanOut.setText(sb.toString());
+    }
+
+    private static String shorten(String name, String pkg) {
+        if (name != null && name.startsWith(pkg)) {
+            return name.substring(pkg.length());
+        }
+        return name == null ? "" : name;
+    }
+
+    // ---------- شاشات الحزمة ----------
 
     private void load() {
         list.removeAllViews();
@@ -95,8 +156,7 @@ public class ExploreActivity extends Activity {
         final String target = pkg + "/" + ai.name;
 
         TextView name = new TextView(this);
-        String shortName = ai.name.startsWith(pkg) ? ai.name.substring(pkg.length()) : ai.name;
-        name.setText(shortName + (ai.exported ? "   [مفتوحة]" : "   [غير مفتوحة]"));
+        name.setText(shorten(ai.name, pkg) + (ai.exported ? "   [مفتوحة]" : "   [غير مفتوحة]"));
         name.setTextIsSelectable(true);
         name.setPadding(0, dp(14), 0, 0);
         list.addView(name);

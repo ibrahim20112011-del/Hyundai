@@ -6,9 +6,9 @@ import android.os.Looper;
 
 /**
  * منطق التشغيل:
- *  R  -> الكاميرا الخلفية فوراً.
- *  D  -> الكاميرا الأمامية، وتبقى المدة المحددة (10 ثوانٍ) ما لم يعد القير إلى R.
- *  بعد R إذا أصبح القير N/P (غير D) لأكثر من 3 ثوانٍ -> العودة للرئيسية.
+ *  R  -> إن كانت الكاميرا الخلفية محددة في التطبيق تُفتح، وإلا يتركها النظام لنفسه.
+ *  مغادرة R (أو D) -> بعد تأخير قصير تُفتح الأمامية وتبقى المدة المحددة (10 ثوانٍ)
+ *        ما لم يعد القير إلى R، ثم العودة للرئيسية.
  */
 public class GearController {
     public static final int UNKNOWN = 0, R = 1, D = 2, OTHER = 3;
@@ -34,6 +34,16 @@ public class GearController {
     private final Runnable leaveRear = () -> {
         Logx.add("خرج القير من R، العودة للرئيسية");
         Util.home(ctx);
+    };
+
+    private final Runnable launchFront = () -> {
+        Config c = new Config(ctx);
+        Logx.add("فتح الكاميرا الأمامية");
+        Util.launch(ctx, target(c, "front"));
+        if (c.getBool("go_home", true)) {
+            int secs = Math.max(1, c.getInt("front_secs", 10));
+            h.postDelayed(endFront, secs * 1000L);
+        }
     };
 
     private GearController(Context c) {
@@ -67,6 +77,12 @@ public class GearController {
         apply(ns, c);
     }
 
+    private void cancelAll() {
+        h.removeCallbacks(endFront);
+        h.removeCallbacks(leaveRear);
+        h.removeCallbacks(launchFront);
+    }
+
     private void apply(int ns, Config c) {
         if (ns == state) {
             return;
@@ -76,25 +92,25 @@ public class GearController {
         boolean revOnly = c.getBool("rev_only", false);
 
         if (ns == R) {
-            h.removeCallbacks(endFront);
-            h.removeCallbacks(leaveRear);
-            Logx.add("فتح الكاميرا الخلفية");
-            Util.launch(ctx, target(c, "rear"));
+            cancelAll();
+            String rear = target(c, "rear");
+            if (rear.isEmpty()) {
+                Logx.add("R: الكاميرا الخلفية يعرضها النظام");
+            } else {
+                Logx.add("فتح الكاميرا الخلفية");
+                Util.launch(ctx, rear);
+            }
         } else if (ns == D) {
             if (revOnly && prev != R) {
                 return;
             }
-            h.removeCallbacks(endFront);
-            h.removeCallbacks(leaveRear);
-            Logx.add("فتح الكاميرا الأمامية");
-            Util.launch(ctx, target(c, "front"));
-            if (c.getBool("go_home", true)) {
-                int secs = Math.max(1, c.getInt("front_secs", 10));
-                h.postDelayed(endFront, secs * 1000L);
-            }
+            cancelAll();
+            int delay = Math.max(0, c.getInt("front_delay", 600));
+            h.postDelayed(launchFront, delay);
         } else if (ns == OTHER && prev == R) {
             h.removeCallbacks(leaveRear);
-            if (c.getBool("go_home", true)) {
+            // زر الرئيسية فقط إن كان التطبيق هو من فتح الخلفية
+            if (!target(c, "rear").isEmpty() && c.getBool("go_home", true)) {
                 h.postDelayed(leaveRear, 3000);
             }
         }
@@ -106,7 +122,7 @@ public class GearController {
         if (!comp.isEmpty()) {
             return comp;
         }
-        return c.get(which + "_pkg", "");
+        return c.get(which + "_pkg", "").trim();
     }
 
     private static boolean matches(String raw, String list) {

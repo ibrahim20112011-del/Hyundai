@@ -18,7 +18,7 @@ public class Logx {
         synchronized (Logx.class) {
             Log.d("GearCam", s);
             lines.add(0, fmt.format(new Date()) + "  " + s);
-            while (lines.size() > 80) {
+            while (lines.size() > 400) {
                 lines.remove(lines.size() - 1);
             }
             r = listener;
